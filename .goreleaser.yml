@@ -1,0 +1,23 @@
+version: 2
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goos:
+      - linux
+      - darwin
+    goarm:
+      - "6"
+      - "7"
+    ldflags:
+      - -s -w
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  version_template: "{{ .Tag }}-next"
+changelog:
+  disable: true
