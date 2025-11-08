@@ -47,7 +47,7 @@ func (s *Server) RegisterRoutes() {
 // handleHealth returns a simple health check response
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 // handleUserliEvent processes incoming webhook events from userli

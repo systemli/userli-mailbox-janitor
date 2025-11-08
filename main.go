@@ -35,7 +35,9 @@ func init() {
 }
 
 func main() {
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	// Load configuration
 	config := BuildConfig()
