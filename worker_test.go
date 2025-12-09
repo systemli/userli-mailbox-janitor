@@ -101,3 +101,39 @@ func (s *WorkerTestSuite) TestWorkerStart_Stop() {
 func TestWorkerTestSuite(t *testing.T) {
 	suite.Run(t, new(WorkerTestSuite))
 }
+
+func TestValidateEmail(t *testing.T) {
+	tests := []struct {
+		name    string
+		email   string
+		wantErr bool
+	}{
+		{"valid email", "user@example.com", false},
+		{"valid email with subdomain", "user@mail.example.com", false},
+		{"valid email with plus", "user+tag@example.com", false},
+		{"valid email with dots", "user.name@example.com", false},
+		{"empty email", "", true},
+		{"wildcard star", "*@example.com", true},
+		{"wildcard question", "user?@example.com", true},
+		{"wildcard in domain", "user@*.com", true},
+		{"no at sign", "userexample.com", true},
+		{"multiple at signs", "user@exam@ple.com", true},
+		{"semicolon injection", "user@example.com;rm -rf /", true},
+		{"pipe injection", "user@example.com|cat /etc/passwd", true},
+		{"ampersand injection", "user@example.com&whoami", true},
+		{"backtick injection", "user@example.com`id`", true},
+		{"dollar injection", "user@example.com$HOME", true},
+		{"newline injection", "user@example.com\ninjected", true},
+		{"quote injection", "user\"@example.com", true},
+		{"single quote injection", "user'@example.com", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateEmail(tt.email)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateEmail(%q) error = %v, wantErr %v", tt.email, err, tt.wantErr)
+			}
+		})
+	}
+}
