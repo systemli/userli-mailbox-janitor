@@ -54,7 +54,7 @@ func validateEmail(email string) error {
 	}
 
 	// Ensure no shell metacharacters that could be exploited
-	if strings.ContainsAny(email, ";|&$`\\\"'<>(){}[]!\n\r\t") {
+	if strings.ContainsAny(email, ";|&$`\\\"'<>(){}[]! \n\r\t") {
 		return fmt.Errorf("%w: contains forbidden characters", ErrInvalidEmail)
 	}
 

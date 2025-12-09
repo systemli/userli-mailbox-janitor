@@ -113,6 +113,7 @@ func TestValidateEmail(t *testing.T) {
 		{"valid email with plus", "user+tag@example.com", false},
 		{"valid email with dots", "user.name@example.com", false},
 		{"empty email", "", true},
+		{"space delimiter", "username @example.org", true},
 		{"wildcard star", "*@example.com", true},
 		{"wildcard question", "user?@example.com", true},
 		{"wildcard in domain", "user@*.com", true},
