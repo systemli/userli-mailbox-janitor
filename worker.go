@@ -12,7 +12,6 @@ import (
 // Worker processes mailbox purging tasks periodically
 type Worker struct {
 	db             *Database
-	logger         *zap.Logger
 	tickInterval   time.Duration
 	retentionHours int
 	doveadmPath    string
@@ -20,10 +19,9 @@ type Worker struct {
 }
 
 // NewWorker creates a new worker instance
-func NewWorker(db *Database, logger *zap.Logger, tickInterval time.Duration, retentionHours int, doveadmPath string, useSudo bool) *Worker {
+func NewWorker(db *Database, tickInterval time.Duration, retentionHours int, doveadmPath string, useSudo bool) *Worker {
 	return &Worker{
 		db:             db,
-		logger:         logger,
 		tickInterval:   tickInterval,
 		retentionHours: retentionHours,
 		doveadmPath:    doveadmPath,
@@ -33,7 +31,7 @@ func NewWorker(db *Database, logger *zap.Logger, tickInterval time.Duration, ret
 
 // Start starts the worker background process
 func (w *Worker) Start(ctx context.Context) {
-	w.logger.Info("Starting worker",
+	logger.Info("Starting worker",
 		zap.Duration("tickInterval", w.tickInterval),
 		zap.Int("retentionHours", w.retentionHours))
 
@@ -48,7 +46,7 @@ func (w *Worker) Start(ctx context.Context) {
 		case <-ticker.C:
 			w.processDueMailboxes()
 		case <-ctx.Done():
-			w.logger.Info("Worker stopped")
+			logger.Info("Worker stopped")
 			return
 		}
 	}
@@ -58,16 +56,16 @@ func (w *Worker) Start(ctx context.Context) {
 func (w *Worker) processDueMailboxes() {
 	mailboxes, err := w.db.GetDueMailboxes(w.retentionHours)
 	if err != nil {
-		w.logger.Error("Failed to get due mailboxes", zap.Error(err))
+		logger.Error("Failed to get due mailboxes", zap.Error(err))
 		return
 	}
 
 	if len(mailboxes) == 0 {
-		w.logger.Debug("No mailboxes due for purging")
+		logger.Debug("No mailboxes due for purging")
 		return
 	}
 
-	w.logger.Info("Processing due mailboxes", zap.Int("count", len(mailboxes)))
+	logger.Info("Processing due mailboxes", zap.Int("count", len(mailboxes)))
 
 	for _, mailbox := range mailboxes {
 		w.processSingleMailbox(mailbox)
@@ -76,25 +74,25 @@ func (w *Worker) processDueMailboxes() {
 
 // processSingleMailbox purges a single mailbox
 func (w *Worker) processSingleMailbox(mailbox Mailbox) {
-	w.logger.Info("Purging mailbox",
+	logger.Info("Purging mailbox",
 		zap.String("email", mailbox.Email),
 		zap.Time("created_at", mailbox.CreatedAt))
 
 	if err := w.purgeMailbox(mailbox.Email); err != nil {
-		w.logger.Error("Failed to purge mailbox",
+		logger.Error("Failed to purge mailbox",
 			zap.String("email", mailbox.Email),
 			zap.Error(err))
 		return
 	}
 
 	if err := w.db.RemoveMailbox(mailbox.Email); err != nil {
-		w.logger.Error("Failed to remove mailbox from database",
+		logger.Error("Failed to remove mailbox from database",
 			zap.String("email", mailbox.Email),
 			zap.Error(err))
 		return
 	}
 
-	w.logger.Info("Mailbox purged successfully", zap.String("email", mailbox.Email))
+	logger.Info("Mailbox purged successfully", zap.String("email", mailbox.Email))
 }
 
 // purgeMailbox executes the doveadm purge command for a mailbox
@@ -107,7 +105,7 @@ func (w *Worker) purgeMailbox(email string) error {
 		cmd = exec.Command(w.doveadmPath, "purge", "-u", email)
 	}
 
-	w.logger.Debug("Executing command",
+	logger.Debug("Executing command",
 		zap.String("command", cmd.String()),
 		zap.String("email", email))
 
@@ -116,7 +114,7 @@ func (w *Worker) purgeMailbox(email string) error {
 		return fmt.Errorf("doveadm purge failed: %w, output: %s", err, string(output))
 	}
 
-	w.logger.Debug("Command executed successfully",
+	logger.Debug("Command executed successfully",
 		zap.String("output", string(output)),
 		zap.String("email", email))
 

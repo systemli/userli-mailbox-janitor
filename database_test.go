@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -9,21 +11,25 @@ import (
 
 type DatabaseTestSuite struct {
 	suite.Suite
-	db     *Database
-	logger *zap.Logger
+	db       *Database
+	tempFile string
 }
 
 func (s *DatabaseTestSuite) SetupTest() {
-	s.logger = zap.NewNop()
+	logger = zap.NewNop()
 
-	// Use in-memory database for tests
+	// Use temporary file for tests
+	tempDir := os.TempDir()
+	s.tempFile = filepath.Join(tempDir, "test_mailboxes.csv")
+
 	var err error
-	s.db, err = NewDatabase(":memory:", s.logger)
+	s.db, err = NewDatabase(s.tempFile)
 	s.Require().NoError(err)
 }
 
 func (s *DatabaseTestSuite) TearDownTest() {
 	s.db.Close()
+	os.Remove(s.tempFile)
 }
 
 func (s *DatabaseTestSuite) TestAddMailbox() {

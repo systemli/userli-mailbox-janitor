@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -16,27 +18,31 @@ import (
 
 type ServerTestSuite struct {
 	suite.Suite
-	server *Server
-	db     *Database
-	logger *zap.Logger
+	server   *Server
+	db       *Database
+	tempFile string
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	// Create test logger
-	s.logger = zap.NewNop()
+	// Set global logger for tests
+	logger = zap.NewNop()
 
 	// Create test database
-	dbPath := ":memory:"
+	tempDir := os.TempDir()
+	s.tempFile = filepath.Join(tempDir, "test_server_mailboxes.csv")
+	os.Remove(s.tempFile) // Ensure clean state
+
 	var err error
-	s.db, err = NewDatabase(dbPath, s.logger)
+	s.db, err = NewDatabase(s.tempFile)
 	s.Require().NoError(err)
 
 	// Create server
-	s.server = NewServer("test-secret", s.db, s.logger)
+	s.server = NewServer("test-secret", s.db)
 }
 
 func (s *ServerTestSuite) TearDownTest() {
 	s.db.Close()
+	os.Remove(s.tempFile)
 }
 
 func (s *ServerTestSuite) TestHandleUserliEvent_InvalidBody() {

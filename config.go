@@ -25,7 +25,7 @@ func BuildConfig() *Config {
 	cfg := &Config{
 		LogLevel:       getEnvOrDefault("LOG_LEVEL", "info"),
 		ListenAddr:     getEnvOrDefault("LISTEN_ADDR", ":8080"),
-		DatabasePath:   getEnvOrDefault("DATABASE_PATH", "./janitor.db"),
+		DatabasePath:   getEnvOrDefault("DATABASE_PATH", "./mailboxes.csv"),
 		DoveadmPath:    getEnvOrDefault("DOVEADM_PATH", "/usr/bin/doveadm"),
 		WebhookSecret:  getEnvOrFatal("WEBHOOK_SECRET"),
 		RetentionHours: getEnvAsIntOrDefault("RETENTION_HOURS", 24),
