@@ -73,16 +73,25 @@ func (s *Server) handleUserliEvent(w http.ResponseWriter, r *http.Request) {
 
 // handleUserDeleted processes user deletion events
 func (s *Server) handleUserDeleted(event UserEvent) {
-	logger.Info("User deleted event received", zap.String("email", event.Data.Email))
+	email := event.Data.Email
+	logger.Info("User deleted event received", zap.String("email", email))
 
-	if err := s.db.AddMailbox(event.Data.Email); err != nil {
-		logger.Error("Failed to add mailbox to database",
-			zap.String("email", event.Data.Email),
+	// Validate email before adding to database (defense in depth)
+	if err := validateEmail(email); err != nil {
+		logger.Error("Invalid email address rejected",
+			zap.String("email", email),
 			zap.Error(err))
 		return
 	}
 
-	logger.Info("Mailbox added to purge queue", zap.String("email", event.Data.Email))
+	if err := s.db.AddMailbox(email); err != nil {
+		logger.Error("Failed to add mailbox to database",
+			zap.String("email", email),
+			zap.Error(err))
+		return
+	}
+
+	logger.Info("Mailbox added to purge queue", zap.String("email", email))
 }
 
 // AuthMiddleware verifies webhook signatures using HMAC SHA256

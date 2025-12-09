@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
 )
+
+// ErrInvalidEmail is returned when an email address contains invalid characters
+var ErrInvalidEmail = errors.New("invalid email address")
 
 // Worker processes mailbox purging tasks periodically
 type Worker struct {
@@ -27,6 +32,33 @@ func NewWorker(db *Database, tickInterval time.Duration, retentionHours int, dov
 		doveadmPath:    doveadmPath,
 		useSudo:        useSudo,
 	}
+}
+
+// validateEmail checks if an email address is safe to use with doveadm.
+// Doveadm supports wildcards (* and ?) in the -u parameter which could
+// allow an attacker to purge multiple mailboxes at once.
+func validateEmail(email string) error {
+	if email == "" {
+		return fmt.Errorf("%w: empty email", ErrInvalidEmail)
+	}
+
+	// Check for doveadm wildcard characters that could match multiple users
+	if strings.ContainsAny(email, "*?") {
+		return fmt.Errorf("%w: contains wildcard characters", ErrInvalidEmail)
+	}
+
+	// Basic email validation - must contain exactly one @
+	atCount := strings.Count(email, "@")
+	if atCount != 1 {
+		return fmt.Errorf("%w: invalid format", ErrInvalidEmail)
+	}
+
+	// Ensure no shell metacharacters that could be exploited
+	if strings.ContainsAny(email, ";|&$`\\\"'<>(){}[]!\n\r\t") {
+		return fmt.Errorf("%w: contains forbidden characters", ErrInvalidEmail)
+	}
+
+	return nil
 }
 
 // Start starts the worker background process
@@ -97,6 +129,11 @@ func (w *Worker) processSingleMailbox(mailbox Mailbox) {
 
 // purgeMailbox executes the doveadm purge command for a mailbox
 func (w *Worker) purgeMailbox(email string) error {
+	// Validate email to prevent wildcard attacks
+	if err := validateEmail(email); err != nil {
+		return fmt.Errorf("email validation failed: %w", err)
+	}
+
 	var cmd *exec.Cmd
 
 	if w.useSudo {

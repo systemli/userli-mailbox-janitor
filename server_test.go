@@ -88,6 +88,40 @@ func (s *ServerTestSuite) TestHandleUserliEvent_UserDeleted() {
 	s.Equal("test@example.com", mailboxes[0].Email)
 }
 
+func (s *ServerTestSuite) TestHandleUserliEvent_UserDeleted_InvalidEmail() {
+	testCases := []struct {
+		name  string
+		email string
+	}{
+		{"wildcard star", "*@example.com"},
+		{"wildcard question", "user?@example.com"},
+		{"shell injection", "user@example.com;rm -rf /"},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			event := UserEvent{
+				Type: EventTypeUserDeleted,
+			}
+			event.Data.Email = tc.email
+			jsonData, err := json.Marshal(event)
+			s.NoError(err)
+
+			req := httptest.NewRequest("POST", "/userli", bytes.NewBuffer(jsonData))
+			w := httptest.NewRecorder()
+
+			s.server.handleUserliEvent(w, req)
+			// Request should still return OK (webhook received), but mailbox should not be added
+			s.Equal(http.StatusOK, w.Code)
+
+			// Verify mailbox was NOT added to database
+			mailboxes, err := s.db.GetDueMailboxes(0)
+			s.NoError(err)
+			s.Empty(mailboxes, "mailbox with invalid email should not be added")
+		})
+	}
+}
+
 func (s *ServerTestSuite) TestAuthMiddleware_ValidSignature() {
 	payload := []byte(`{"type":"user.deleted","data":{"email":"test@example.com"}}`)
 	mac := hmac.New(sha256.New, []byte("test-secret"))
