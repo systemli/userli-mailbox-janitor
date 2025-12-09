@@ -20,17 +20,15 @@ func init() {
 		logLevel = os.Getenv("LOG_LEVEL")
 	}
 
-	atomic := zap.NewAtomicLevel()
 	level, err := zapcore.ParseLevel(logLevel)
 	if err != nil {
 		log.Fatal(err)
 	}
-	atomic.SetLevel(level)
 
 	logger = zap.New(zapcore.NewCore(
 		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
 		zapcore.Lock(os.Stdout),
-		atomic,
+		level,
 	))
 }
 
