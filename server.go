@@ -18,23 +18,21 @@ type Server struct {
 	router        *chi.Mux
 	webhookSecret string
 	db            *Database
-	logger        *zap.Logger
 }
 
 // NewServer creates a new HTTP server instance
-func NewServer(webhookSecret string, db *Database, logger *zap.Logger) *Server {
+func NewServer(webhookSecret string, db *Database) *Server {
 	return &Server{
 		router:        chi.NewRouter(),
 		webhookSecret: webhookSecret,
 		db:            db,
-		logger:        logger,
 	}
 }
 
 // Start starts the HTTP server
 func (s *Server) Start(addr string) error {
 	s.RegisterRoutes()
-	s.logger.Info("Starting HTTP server", zap.String("address", addr))
+	logger.Info("Starting HTTP server", zap.String("address", addr))
 	return http.ListenAndServe(addr, s.router)
 }
 
@@ -52,11 +50,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // handleUserliEvent processes incoming webhook events from userli
 func (s *Server) handleUserliEvent(w http.ResponseWriter, r *http.Request) {
-	s.logger.Info("Userli event received")
+	logger.Info("Userli event received")
 
 	var event UserEvent
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
-		s.logger.Error("Failed to decode event", zap.Error(err))
+		logger.Error("Failed to decode event", zap.Error(err))
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -65,7 +63,7 @@ func (s *Server) handleUserliEvent(w http.ResponseWriter, r *http.Request) {
 	case EventTypeUserDeleted:
 		s.handleUserDeleted(event)
 	default:
-		s.logger.Warn("Unknown event type received", zap.String("type", event.Type))
+		logger.Warn("Unknown event type received", zap.String("type", event.Type))
 		http.Error(w, "Unknown event type", http.StatusBadRequest)
 		return
 	}
@@ -75,16 +73,16 @@ func (s *Server) handleUserliEvent(w http.ResponseWriter, r *http.Request) {
 
 // handleUserDeleted processes user deletion events
 func (s *Server) handleUserDeleted(event UserEvent) {
-	s.logger.Info("User deleted event received", zap.String("email", event.Data.Email))
+	logger.Info("User deleted event received", zap.String("email", event.Data.Email))
 
 	if err := s.db.AddMailbox(event.Data.Email); err != nil {
-		s.logger.Error("Failed to add mailbox to database",
+		logger.Error("Failed to add mailbox to database",
 			zap.String("email", event.Data.Email),
 			zap.Error(err))
 		return
 	}
 
-	s.logger.Info("Mailbox added to purge queue", zap.String("email", event.Data.Email))
+	logger.Info("Mailbox added to purge queue", zap.String("email", event.Data.Email))
 }
 
 // AuthMiddleware verifies webhook signatures using HMAC SHA256
@@ -92,14 +90,14 @@ func (s *Server) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		signature := r.Header.Get("X-Webhook-Signature")
 		if signature == "" {
-			s.logger.Warn("Missing webhook signature")
+			logger.Warn("Missing webhook signature")
 			http.Error(w, "Missing signature header", http.StatusUnauthorized)
 			return
 		}
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.logger.Error("Failed to read request body", zap.Error(err))
+			logger.Error("Failed to read request body", zap.Error(err))
 			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 			return
 		}
@@ -115,7 +113,7 @@ func (s *Server) AuthMiddleware(next http.Handler) http.Handler {
 
 		// Compare signatures
 		if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
-			s.logger.Warn("Invalid webhook signature")
+			logger.Warn("Invalid webhook signature")
 			http.Error(w, "Invalid signature", http.StatusUnauthorized)
 			return
 		}

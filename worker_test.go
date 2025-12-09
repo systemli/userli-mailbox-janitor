@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,24 +13,30 @@ import (
 
 type WorkerTestSuite struct {
 	suite.Suite
-	db     *Database
-	worker *Worker
-	logger *zap.Logger
+	db       *Database
+	worker   *Worker
+	tempFile string
 }
 
 func (s *WorkerTestSuite) SetupTest() {
-	s.logger = zap.NewNop()
+	logger = zap.NewNop()
+
+	// Use unique temporary file for each test
+	tempDir := os.TempDir()
+	s.tempFile = filepath.Join(tempDir, "test_worker_mailboxes.csv")
+	os.Remove(s.tempFile) // Ensure clean state
 
 	var err error
-	s.db, err = NewDatabase(":memory:", s.logger)
+	s.db, err = NewDatabase(s.tempFile)
 	s.Require().NoError(err)
 
 	// Use mock doveadm command for testing (just use 'echo' which exists on all systems)
-	s.worker = NewWorker(s.db, s.logger, 100*time.Millisecond, 0, "/bin/echo", false)
+	s.worker = NewWorker(s.db, 100*time.Millisecond, 0, "/bin/echo", false)
 }
 
 func (s *WorkerTestSuite) TearDownTest() {
 	s.db.Close()
+	os.Remove(s.tempFile)
 }
 
 func (s *WorkerTestSuite) TestProcessDueMailboxes_Empty() {

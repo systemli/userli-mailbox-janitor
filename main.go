@@ -48,7 +48,7 @@ func main() {
 		zap.Duration("tickInterval", config.TickInterval))
 
 	// Initialize database
-	db, err := NewDatabase(config.DatabasePath, logger)
+	db, err := NewDatabase(config.DatabasePath)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", zap.Error(err))
 	}
@@ -59,11 +59,11 @@ func main() {
 	defer cancel()
 
 	// Start worker
-	worker := NewWorker(db, logger, config.TickInterval, config.RetentionHours, config.DoveadmPath, config.UseSudo)
+	worker := NewWorker(db, config.TickInterval, config.RetentionHours, config.DoveadmPath, config.UseSudo)
 	go worker.Start(ctx)
 
 	// Start HTTP server
-	server := NewServer(config.WebhookSecret, db, logger)
+	server := NewServer(config.WebhookSecret, db)
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
