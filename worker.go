@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,48 +15,66 @@ import (
 // ErrInvalidEmail is returned when an email address contains invalid characters
 var ErrInvalidEmail = errors.New("invalid email address")
 
+// emailRegex is an allowlist pattern for valid email addresses.
+// Only lowercase alphanumeric characters, dots, underscore, and hyphen are allowed.
+// The local part can contain dots, underscores, or hyphens between alphanumeric characters.
+// The domain is composed of labels that cannot start or end with a hyphen and are separated by
+// single dots (no consecutive dots).
+var emailRegex = regexp.MustCompile(`^[a-z0-9_-]+(?:[._-][a-z0-9]+)*@(?:[a-z0-9]+(?:-[a-z0-9]+)*\.)+[a-z]{2,}$`)
+
 // Worker processes mailbox purging tasks periodically
 type Worker struct {
 	db             *Database
 	tickInterval   time.Duration
 	retentionHours int
-	doveadmPath    string
-	useSudo        bool
+	purgeCommand   string
 }
 
 // NewWorker creates a new worker instance
-func NewWorker(db *Database, tickInterval time.Duration, retentionHours int, doveadmPath string, useSudo bool) *Worker {
+func NewWorker(db *Database, tickInterval time.Duration, retentionHours int, purgeCommand string) *Worker {
 	return &Worker{
 		db:             db,
 		tickInterval:   tickInterval,
 		retentionHours: retentionHours,
-		doveadmPath:    doveadmPath,
-		useSudo:        useSudo,
+		purgeCommand:   purgeCommand,
 	}
 }
 
-// validateEmail checks if an email address is safe to use with doveadm.
-// Doveadm supports wildcards (* and ?) in the -u parameter which could
-// allow an attacker to purge multiple mailboxes at once.
+// parseEmail splits an email address into local_part and domain
+func parseEmail(email string) (localPart, domain string, err error) {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("%w: invalid format", ErrInvalidEmail)
+	}
+	return parts[0], parts[1], nil
+}
+
+// buildPurgeCommand replaces placeholders in the command template with actual values
+func buildPurgeCommand(cmdTemplate, email string) (string, error) {
+	localPart, domain, err := parseEmail(email)
+	if err != nil {
+		return "", err
+	}
+
+	cmd := cmdTemplate
+	cmd = strings.ReplaceAll(cmd, "{email}", email)
+	cmd = strings.ReplaceAll(cmd, "{domain}", domain)
+	cmd = strings.ReplaceAll(cmd, "{local_part}", localPart)
+
+	return cmd, nil
+}
+
+// validateEmail checks if an email address matches the allowlist pattern.
+// Only lowercase alphanumeric characters, dots, plus, underscore, and hyphen are allowed.
+// This prevents shell injection and path traversal attacks by design.
 func validateEmail(email string) error {
-	if email == "" {
-		return fmt.Errorf("%w: empty email", ErrInvalidEmail)
+	if !emailRegex.MatchString(email) {
+		return fmt.Errorf("%w: does not match allowed pattern", ErrInvalidEmail)
 	}
 
-	// Check for doveadm wildcard characters that could match multiple users
-	if strings.ContainsAny(email, "*?") {
-		return fmt.Errorf("%w: contains wildcard characters", ErrInvalidEmail)
-	}
-
-	// Basic email validation - must contain exactly one @
-	atCount := strings.Count(email, "@")
-	if atCount != 1 {
-		return fmt.Errorf("%w: invalid format", ErrInvalidEmail)
-	}
-
-	// Ensure no shell metacharacters that could be exploited
-	if strings.ContainsAny(email, ";|&$`\\\"'<>(){}[]! \n\r\t") {
-		return fmt.Errorf("%w: contains forbidden characters", ErrInvalidEmail)
+	// Additional check for path traversal (double dots)
+	if strings.Contains(email, "..") {
+		return fmt.Errorf("%w: contains path traversal sequence", ErrInvalidEmail)
 	}
 
 	return nil
@@ -127,28 +146,24 @@ func (w *Worker) processSingleMailbox(mailbox Mailbox) {
 	logger.Info("Mailbox purged successfully", zap.String("email", mailbox.Email))
 }
 
-// purgeMailbox executes the doveadm purge command for a mailbox
+// purgeMailbox executes the configured purge command for a mailbox
 func (w *Worker) purgeMailbox(email string) error {
-	// Validate email to prevent wildcard attacks
-	if err := validateEmail(email); err != nil {
-		return fmt.Errorf("email validation failed: %w", err)
+	// Build the command with placeholders replaced
+	cmdString, err := buildPurgeCommand(w.purgeCommand, email)
+	if err != nil {
+		return fmt.Errorf("failed to build purge command: %w", err)
 	}
 
-	var cmd *exec.Cmd
-
-	if w.useSudo {
-		cmd = exec.Command("sudo", w.doveadmPath, "purge", "-u", email)
-	} else {
-		cmd = exec.Command(w.doveadmPath, "purge", "-u", email)
-	}
+	// Execute the command via shell to support complex commands
+	cmd := exec.Command("sh", "-c", cmdString)
 
 	logger.Debug("Executing command",
-		zap.String("command", cmd.String()),
+		zap.String("command", cmdString),
 		zap.String("email", email))
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("doveadm purge failed: %w, output: %s", err, string(output))
+		return fmt.Errorf("purge command failed: %w, output: %s", err, string(output))
 	}
 
 	logger.Debug("Command executed successfully",
