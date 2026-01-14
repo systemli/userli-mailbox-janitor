@@ -57,7 +57,7 @@ func main() {
 	defer cancel()
 
 	// Start worker
-	worker := NewWorker(db, config.TickInterval, config.RetentionHours, config.DoveadmPath, config.UseSudo)
+	worker := NewWorker(db, config.TickInterval, config.RetentionHours, config.PurgeCommand)
 	go worker.Start(ctx)
 
 	// Start HTTP server

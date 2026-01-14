@@ -9,7 +9,7 @@ A webhook-based daemon that automatically purges deleted user mailboxes after a 
 
 - Listens for user deletion webhooks from userli
 - Stores mailbox deletion tasks in a simple CSV file (easy to edit manually)
-- Automatically purges mailboxes using `doveadm` after configured retention period (default: 24h)
+- Automatically purges mailboxes using a configurable command after configured retention period (default: 24h)
 - HMAC SHA256 webhook signature verification
 - Background worker with ticker for processing tasks
 - Structured logging with zap
@@ -20,7 +20,7 @@ A webhook-based daemon that automatically purges deleted user mailboxes after a 
 1. **Webhook Reception**: Receives `user.deleted` events via HTTP POST to `/userli`
 2. **CSV Storage**: Stores the email and creation timestamp in a CSV file
 3. **Background Processing**: A ticker runs periodically (configurable interval) to check for due mailboxes
-4. **Mailbox Purging**: Executes `sudo doveadm purge <email>` for each due mailbox
+4. **Mailbox Purging**: Executes the configured `PURGE_COMMAND` with placeholders replaced for each due mailbox
 5. **Cleanup**: Removes successfully purged mailboxes from the CSV file
 
 ## Installation
@@ -45,8 +45,7 @@ Configuration is done via environment variables:
 | `DATABASE_PATH` | Path to CSV file for storing mailbox data | `./mailboxes.csv` |
 | `RETENTION_HOURS` | Hours to wait before purging mailbox | `24` |
 | `TICK_INTERVAL` | Interval for checking due mailboxes (e.g., "5m", "1h") | `5m` |
-| `DOVEADM_PATH` | Path to doveadm executable | `/usr/bin/doveadm` |
-| `USE_SUDO` | Whether to use sudo for doveadm | `true` |
+| `PURGE_COMMAND` | Command to purge mailbox, with placeholders `{email}`, `{domain}`, and `{local_part}` | `sudo rm -rf /var/vmail/{domain}/{local_part}` |
 
 ## Usage
 

@@ -19,8 +19,7 @@ func (s *ConfigTestSuite) SetupTest() {
 	os.Unsetenv("DATABASE_PATH")
 	os.Unsetenv("RETENTION_HOURS")
 	os.Unsetenv("TICK_INTERVAL")
-	os.Unsetenv("DOVEADM_PATH")
-	os.Unsetenv("USE_SUDO")
+	os.Unsetenv("PURGE_COMMAND")
 }
 
 func (s *ConfigTestSuite) TestBuildConfig_Defaults() {
@@ -33,8 +32,7 @@ func (s *ConfigTestSuite) TestBuildConfig_Defaults() {
 	s.Equal("test-secret", cfg.WebhookSecret)
 	s.Equal("./mailboxes.csv", cfg.DatabasePath)
 	s.Equal(24, cfg.RetentionHours)
-	s.Equal("/usr/bin/doveadm", cfg.DoveadmPath)
-	s.True(cfg.UseSudo)
+	s.Equal("echo 'No PURGE_COMMAND configured; skipping purge for {domain}/{local_part}'", cfg.PurgeCommand)
 }
 
 func (s *ConfigTestSuite) TestBuildConfig_CustomValues() {
@@ -44,8 +42,7 @@ func (s *ConfigTestSuite) TestBuildConfig_CustomValues() {
 	os.Setenv("DATABASE_PATH", "/tmp/test.csv")
 	os.Setenv("RETENTION_HOURS", "48")
 	os.Setenv("TICK_INTERVAL", "10m")
-	os.Setenv("DOVEADM_PATH", "/usr/local/bin/doveadm")
-	os.Setenv("USE_SUDO", "false")
+	os.Setenv("PURGE_COMMAND", "doveadm purge -u {email}")
 
 	cfg := BuildConfig()
 
@@ -54,8 +51,7 @@ func (s *ConfigTestSuite) TestBuildConfig_CustomValues() {
 	s.Equal("custom-secret", cfg.WebhookSecret)
 	s.Equal("/tmp/test.csv", cfg.DatabasePath)
 	s.Equal(48, cfg.RetentionHours)
-	s.Equal("/usr/local/bin/doveadm", cfg.DoveadmPath)
-	s.False(cfg.UseSudo)
+	s.Equal("doveadm purge -u {email}", cfg.PurgeCommand)
 }
 
 func TestConfigTestSuite(t *testing.T) {

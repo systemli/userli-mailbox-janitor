@@ -16,8 +16,7 @@ type Config struct {
 	DatabasePath   string
 	RetentionHours int
 	TickInterval   time.Duration
-	DoveadmPath    string
-	UseSudo        bool
+	PurgeCommand   string
 }
 
 // BuildConfig creates a configuration from environment variables
@@ -26,10 +25,9 @@ func BuildConfig() *Config {
 		LogLevel:       getEnvOrDefault("LOG_LEVEL", "info"),
 		ListenAddr:     getEnvOrDefault("LISTEN_ADDR", ":8080"),
 		DatabasePath:   getEnvOrDefault("DATABASE_PATH", "./mailboxes.csv"),
-		DoveadmPath:    getEnvOrDefault("DOVEADM_PATH", "/usr/bin/doveadm"),
+		PurgeCommand:   getEnvOrDefault("PURGE_COMMAND", "echo 'No PURGE_COMMAND configured; skipping purge for {domain}/{local_part}'"),
 		WebhookSecret:  getEnvOrFatal("WEBHOOK_SECRET"),
 		RetentionHours: getEnvAsIntOrDefault("RETENTION_HOURS", 24),
-		UseSudo:        getEnvAsBoolOrDefault("USE_SUDO", true),
 	}
 
 	// Parse tick interval
@@ -70,21 +68,6 @@ func getEnvAsIntOrDefault(key string, defaultValue int) int {
 	val, err := strconv.Atoi(valStr)
 	if err != nil {
 		logger.Fatal("Invalid integer value for "+key, zap.String("value", valStr))
-	}
-
-	return val
-}
-
-// getEnvAsBoolOrDefault returns an environment variable as bool or a default value
-func getEnvAsBoolOrDefault(key string, defaultValue bool) bool {
-	valStr := os.Getenv(key)
-	if valStr == "" {
-		return defaultValue
-	}
-
-	val, err := strconv.ParseBool(valStr)
-	if err != nil {
-		logger.Fatal("Invalid boolean value for "+key, zap.String("value", valStr))
 	}
 
 	return val
