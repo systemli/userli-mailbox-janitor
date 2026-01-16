@@ -45,7 +45,7 @@ Configuration is done via environment variables:
 | `DATABASE_PATH` | Path to CSV file for storing mailbox data | `./mailboxes.csv` |
 | `RETENTION_HOURS` | Hours to wait before purging mailbox | `24` |
 | `TICK_INTERVAL` | Interval for checking due mailboxes (e.g., "5m", "1h") | `5m` |
-| `PURGE_COMMAND` | Command to purge mailbox, with placeholders `{email}`, `{domain}`, and `{local_part}` | `sudo rm -rf /var/vmail/{domain}/{local_part}` |
+| `PURGE_COMMAND` | Command to purge mailbox, with placeholders `{email}`, `{domain}`, and `{local_part}` | `echo 'No PURGE_COMMAND configured; skipping purge for {domain}/{local_part}'` |
 
 ## Usage
 

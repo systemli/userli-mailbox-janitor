@@ -35,7 +35,3 @@ template: |
   $CHANGES
 
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...$RESOLVED_VERSION
-
-  ## Docker
-
-  - `docker pull systemli/userli-mailbox-janitor:$RESOLVED_VERSION`
