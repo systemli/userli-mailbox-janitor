@@ -10,33 +10,48 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	LogLevel       string
-	ListenAddr     string
-	WebhookSecret  string
-	DatabasePath   string
-	RetentionHours int
-	TickInterval   time.Duration
-	PurgeCommand   string
+	LogLevel             string
+	ListenAddr           string
+	WebhookSecret        string
+	PurgerDatabasePath   string
+	PurgerRetentionHours int
+	PurgerTickInterval   time.Duration
+	PurgerCommand        string
+	ToucherSieveLocation string
+	ToucherTickInterval  time.Duration
+	UserliURL            string
+	UserliToken          string
 }
 
 // BuildConfig creates a configuration from environment variables
 func BuildConfig() *Config {
 	cfg := &Config{
-		LogLevel:       getEnvOrDefault("LOG_LEVEL", "info"),
-		ListenAddr:     getEnvOrDefault("LISTEN_ADDR", ":8080"),
-		DatabasePath:   getEnvOrDefault("DATABASE_PATH", "./mailboxes.csv"),
-		PurgeCommand:   getEnvOrDefault("PURGE_COMMAND", "echo 'No PURGE_COMMAND configured; skipping purge for {domain}/{local_part}'"),
-		WebhookSecret:  getEnvOrFatal("WEBHOOK_SECRET"),
-		RetentionHours: getEnvAsIntOrDefault("RETENTION_HOURS", 24),
+		LogLevel:             getEnvOrDefault("LOG_LEVEL", "info"),
+		ListenAddr:           getEnvOrDefault("LISTEN_ADDR", ":8080"),
+		PurgerDatabasePath:   getEnvOrDefault("PURGER_DATABASE_PATH", "./mailboxes.csv"),
+		PurgerCommand:        getEnvOrDefault("PURGER_COMMAND", "echo 'No PURGER_COMMAND configured; skipping purge for {domain}/{local_part}'"),
+		WebhookSecret:        getEnvOrFatal("WEBHOOK_SECRET"),
+		PurgerRetentionHours: getEnvAsIntOrDefault("PURGER_RETENTION_HOURS", 24),
+		ToucherSieveLocation: getEnvOrFatal("TOUCHER_SIEVE_LOCATION"),
+		UserliURL:            getEnvOrFatal("USERLI_URL"),
+		UserliToken:          getEnvOrFatal("USERLI_TOKEN"),
 	}
 
-	// Parse tick interval
-	tickIntervalStr := getEnvOrDefault("TICK_INTERVAL", "5m")
-	tickInterval, err := time.ParseDuration(tickIntervalStr)
+	// Parse purger tick interval
+	purgerTickIntervalStr := getEnvOrDefault("PURGER_TICK_INTERVAL", "1h")
+	purgerTickInterval, err := time.ParseDuration(purgerTickIntervalStr)
 	if err != nil {
-		logger.Fatal("Invalid TICK_INTERVAL format", zap.String("value", tickIntervalStr))
+		logger.Fatal("Invalid PURGER_TICK_INTERVAL format", zap.String("value", purgerTickIntervalStr))
 	}
-	cfg.TickInterval = tickInterval
+	cfg.PurgerTickInterval = purgerTickInterval
+
+	// Parse toucher tick interval
+	toucherTickIntervalStr := getEnvOrDefault("TOUCHER_TICK_INTERVAL", "24h")
+	toucherTickInterval, err := time.ParseDuration(toucherTickIntervalStr)
+	if err != nil {
+		logger.Fatal("Invalid TOUCHER_TICK_INTERVAL format", zap.String("value", toucherTickIntervalStr))
+	}
+	cfg.ToucherTickInterval = toucherTickInterval
 
 	return cfg
 }
