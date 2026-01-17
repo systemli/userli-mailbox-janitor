@@ -18,11 +18,12 @@ type Toucher struct {
 }
 
 // NewToucher creates a new toucher instance
-func NewToucher(client *UserliClient, tickInterval time.Duration, sieveLocation string) *Toucher {
+func NewToucher(client *UserliClient, tickInterval time.Duration, sieveLocation string, useSudo bool) *Toucher {
 	return &Toucher{
 		client:        client,
 		tickInterval:  tickInterval,
 		sieveLocation: sieveLocation,
+		useSudo:       useSudo,
 	}
 }
 

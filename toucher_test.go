@@ -34,6 +34,7 @@ func (s *ToucherTestSuite) SetupTest() {
 		s.client,
 		100*time.Millisecond,
 		filepath.Join(s.tempDir, "{domain}", "{local_part}", ".dovecot.sieve"),
+		false,
 	)
 }
 
@@ -46,8 +47,9 @@ func (s *ToucherTestSuite) TestNewToucher() {
 	client := NewUserliClient("https://example.com", "token")
 	interval := 5 * time.Minute
 	location := "/tmp/toucher_test/{domain}/{local_part}/.dovecot.sieve"
+	useSudo := false
 
-	toucher := NewToucher(client, interval, location)
+	toucher := NewToucher(client, interval, location, useSudo)
 
 	s.Equal(client, toucher.client)
 	s.Equal(interval, toucher.tickInterval)
@@ -225,6 +227,7 @@ func (s *ToucherTestSuite) TestStart_Stop() {
 		s.client,
 		5*time.Second, // Long interval so it won't tick during our short test
 		filepath.Join(s.tempDir, "{domain}", "{local_part}", ".dovecot.sieve"),
+		false,
 	)
 
 	// Set up mock for the immediate execution on start
@@ -344,6 +347,7 @@ func TestToucherIntegration(t *testing.T) {
 		client,
 		100*time.Millisecond,
 		filepath.Join(tempDir, "{domain}", "{local_part}", ".dovecot.sieve"),
+		false,
 	)
 
 	// Mock API responses
