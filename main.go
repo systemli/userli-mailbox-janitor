@@ -46,6 +46,7 @@ func main() {
 		zap.Duration("purgerTickInterval", config.PurgerTickInterval),
 		zap.Duration("toucherTickInterval", config.ToucherTickInterval),
 		zap.String("toucherSieveLocation", config.ToucherSieveLocation),
+		zap.Bool("toucherUseSudo", config.ToucherUseSudo),
 		zap.String("userliURL", config.UserliURL))
 
 	// Initialize database
@@ -65,7 +66,7 @@ func main() {
 
 	// Start toucher
 	userliClient := NewUserliClient(config.UserliURL, config.UserliToken)
-	toucher := NewToucher(userliClient, config.ToucherTickInterval, config.ToucherSieveLocation)
+	toucher := NewToucher(userliClient, config.ToucherTickInterval, config.ToucherSieveLocation, config.ToucherUseSudo)
 	go toucher.Start(ctx)
 
 	// Start HTTP server
