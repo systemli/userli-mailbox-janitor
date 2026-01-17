@@ -24,6 +24,7 @@ func (s *ConfigTestSuite) SetupTest() {
 	os.Unsetenv("TOUCHER_TICK_INTERVAL")
 	os.Unsetenv("USERLI_URL")
 	os.Unsetenv("USERLI_TOKEN")
+	os.Unsetenv("TOUCHER_USE_SUDO")
 }
 
 func (s *ConfigTestSuite) TestBuildConfig_Defaults() {
@@ -43,6 +44,7 @@ func (s *ConfigTestSuite) TestBuildConfig_Defaults() {
 	s.Equal("/var/mail/{domain}/{local_part}/.dovecot.sieve", cfg.ToucherSieveLocation)
 	s.Equal("1h0m0s", cfg.PurgerTickInterval.String())
 	s.Equal("24h0m0s", cfg.ToucherTickInterval.String())
+	s.Equal(false, cfg.ToucherUseSudo)
 }
 
 func (s *ConfigTestSuite) TestBuildConfig_CustomValues() {
@@ -57,6 +59,7 @@ func (s *ConfigTestSuite) TestBuildConfig_CustomValues() {
 	os.Setenv("USERLI_URL", "http://example.com")
 	os.Setenv("USERLI_TOKEN", "test-token")
 	os.Setenv("TOUCHER_TICK_INTERVAL", "24h")
+	os.Setenv("TOUCHER_USE_SUDO", "true")
 
 	cfg := BuildConfig()
 
@@ -71,6 +74,7 @@ func (s *ConfigTestSuite) TestBuildConfig_CustomValues() {
 	s.Equal("http://example.com", cfg.UserliURL)
 	s.Equal("test-token", cfg.UserliToken)
 	s.Equal("24h0m0s", cfg.ToucherTickInterval.String())
+	s.Equal(true, cfg.ToucherUseSudo)
 }
 
 func TestConfigTestSuite(t *testing.T) {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -14,6 +14,7 @@ type Toucher struct {
 	client        *UserliClient
 	tickInterval  time.Duration
 	sieveLocation string
+	useSudo       bool
 }
 
 // NewToucher creates a new toucher instance
@@ -88,14 +89,18 @@ func (t *Toucher) processInactiveUser(email string) {
 		return
 	}
 
-	// Check if sieve file exists and read it
-	sieveContents, err := os.ReadFile(sieveFilePath)
+	var sieveContents []byte
+
+	if t.useSudo {
+		cmd := exec.Command("/usr/bin/sudo", "/usr/bin/cat", sieveFilePath)
+		sieveContents, err = cmd.Output()
+	} else {
+		cmd := exec.Command("/usr/bin/cat", sieveFilePath)
+		sieveContents, err = cmd.Output()
+	}
+
 	if err != nil {
-		if os.IsNotExist(err) {
-			logger.Debug("Sieve file does not exist", zap.String("email", email), zap.String("path", sieveFilePath))
-			return
-		}
-		logger.Error("Failed to read sieve file", zap.String("email", email), zap.String("path", sieveFilePath), zap.Error(err))
+		logger.Debug("Cannot read sieve file. File might not exist", zap.String("email", email), zap.String("path", sieveFilePath), zap.Error(err))
 		return
 	}
 
