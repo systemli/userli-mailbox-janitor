@@ -41,12 +41,15 @@ func main() {
 	config := BuildConfig()
 	logger.Info("Configuration loaded",
 		zap.String("listenAddr", config.ListenAddr),
-		zap.String("databasePath", config.DatabasePath),
-		zap.Int("retentionHours", config.RetentionHours),
-		zap.Duration("tickInterval", config.TickInterval))
+		zap.String("purgerDatabasePath", config.PurgerDatabasePath),
+		zap.Int("purgerRetentionHours", config.PurgerRetentionHours),
+		zap.Duration("purgerTickInterval", config.PurgerTickInterval),
+		zap.Duration("toucherTickInterval", config.ToucherTickInterval),
+		zap.String("toucherSieveLocation", config.ToucherSieveLocation),
+		zap.String("userliURL", config.UserliURL))
 
 	// Initialize database
-	db, err := NewDatabase(config.DatabasePath)
+	db, err := NewDatabase(config.PurgerDatabasePath)
 	if err != nil {
 		logger.Fatal("Failed to initialize database", zap.Error(err))
 	}
@@ -56,9 +59,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start worker
-	worker := NewWorker(db, config.TickInterval, config.RetentionHours, config.PurgeCommand)
-	go worker.Start(ctx)
+	// Start purger
+	purger := NewPurger(db, config.PurgerTickInterval, config.PurgerRetentionHours, config.PurgerCommand)
+	go purger.Start(ctx)
+
+	// Start toucher
+	userliClient := NewUserliClient(config.UserliURL, config.UserliToken)
+	toucher := NewToucher(userliClient, config.ToucherTickInterval, config.ToucherSieveLocation)
+	go toucher.Start(ctx)
 
 	// Start HTTP server
 	server := NewServer(config.WebhookSecret, db)
