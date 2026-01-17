@@ -18,7 +18,7 @@ var ErrInvalidEmail = errors.New("invalid email address")
 var emailRegex = regexp.MustCompile(`^[a-z0-9_-]+(?:[._-][a-z0-9]+)*@(?:[a-z0-9]+(?:-[a-z0-9]+)*\.)+[a-z]{2,}$`)
 
 // sieveRedirectRegex searches "if true { redirect ...; }", regardless of case and line breaks
-var sieveRedirectRegex = regexp.MustCompile(`(?mi)^\s*\bif\b\s*\btrue\b\s*\{\s*\bredirect\b\s+[\s\S]*?;\s*\}`)
+var sieveRedirectRegex = regexp.MustCompile(`(?mi)^\s*\bif\b\s*\btrue\b\s*\{[\s\S]*?\bredirect\b[\s\S]*?\}`)
 
 // parseEmail splits an email address into local_part and domain
 func parseEmail(email string) (localPart, domain string, err error) {
