@@ -57,6 +57,7 @@ Configuration is done via environment variables:
 | `PURGER_COMMAND`         | Command to purge mailbox, with placeholders `{email}`, `{domain}`, and `{local_part}` | `echo 'No PURGER_COMMAND configured; skipping purge for {domain}/{local_part}'` |
 | `TOUCHER_TICK_INTERVAL`  | Interval for checking inactive users for retention (e.g., "1h", "6h")                 | `24h`                                                                           |
 | `TOUCHER_SIEVE_LOCATION` | Path pattern for sieve files with placeholders `{domain}` and `{local_part}`          | *required*                                                                      |
+| `TOUCHER_USE_SUDO`       | Whether to use sudo when accessing sieve files (true/false)                           | `false`                                                                         |
 | `USERLI_URL`             | Base URL of the Userli API                                                            | *required*                                                                      |
 | `USERLI_TOKEN`           | API token for Userli authentication                                                   | *required*                                                                      |
 

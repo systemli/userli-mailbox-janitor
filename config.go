@@ -19,6 +19,7 @@ type Config struct {
 	PurgerCommand        string
 	ToucherSieveLocation string
 	ToucherTickInterval  time.Duration
+	ToucherUseSudo       bool
 	UserliURL            string
 	UserliToken          string
 }
@@ -33,6 +34,7 @@ func BuildConfig() *Config {
 		WebhookSecret:        getEnvOrFatal("WEBHOOK_SECRET"),
 		PurgerRetentionHours: getEnvAsIntOrDefault("PURGER_RETENTION_HOURS", 24),
 		ToucherSieveLocation: getEnvOrFatal("TOUCHER_SIEVE_LOCATION"),
+		ToucherUseSudo:       getEnvAsBoolOrDefault("TOUCHER_USE_SUDO", false),
 		UserliURL:            getEnvOrFatal("USERLI_URL"),
 		UserliToken:          getEnvOrFatal("USERLI_TOKEN"),
 	}
@@ -83,6 +85,21 @@ func getEnvAsIntOrDefault(key string, defaultValue int) int {
 	val, err := strconv.Atoi(valStr)
 	if err != nil {
 		logger.Fatal("Invalid integer value for "+key, zap.String("value", valStr))
+	}
+
+	return val
+}
+
+// getEnvAsBoolOrDefault returns an environment variable as bool or a default value
+func getEnvAsBoolOrDefault(key string, defaultValue bool) bool {
+	valStr := os.Getenv(key)
+	if valStr == "" {
+		return defaultValue
+	}
+
+	val, err := strconv.ParseBool(valStr)
+	if err != nil {
+		logger.Fatal("Invalid boolean value for "+key, zap.String("value", valStr))
 	}
 
 	return val
