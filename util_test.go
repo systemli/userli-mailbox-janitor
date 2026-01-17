@@ -237,8 +237,18 @@ func TestParseSieveScript(t *testing.T) {
 			want:    false,
 		},
 		{
+			name:    "redirect as second action should match",
+			content: "if true {\n  fileinto \"INBOX\";\n  redirect \"admin@example.com\";\n}",
+			want:    true,
+		},
+		{
 			name:    "if true mixed with other conditions should still match",
 			content: "if header :contains \"subject\" \"test\" {\n  fileinto \"Test\";\n}\nif true {\n  redirect \"admin@example.com\";\n}",
+			want:    true,
+		},
+		{
+			name:    "if false mixed with other conditions should not match",
+			content: "if true {\n  fileinto \"Test\";\n}\nif header :contains \"subject\" \"test\" {\n  redirect \"admin@example.com\";\n}",
 			want:    true,
 		},
 	}
