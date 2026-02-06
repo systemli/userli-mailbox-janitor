@@ -18,14 +18,16 @@ type Server struct {
 	router        *chi.Mux
 	webhookSecret string
 	db            *Database
+	purger        *Purger
 }
 
 // NewServer creates a new HTTP server instance
-func NewServer(webhookSecret string, db *Database) *Server {
+func NewServer(webhookSecret string, db *Database, purger *Purger) *Server {
 	return &Server{
 		router:        chi.NewRouter(),
 		webhookSecret: webhookSecret,
 		db:            db,
+		purger:        purger,
 	}
 }
 
@@ -62,6 +64,8 @@ func (s *Server) handleUserliEvent(w http.ResponseWriter, r *http.Request) {
 	switch event.Type {
 	case EventTypeUserDeleted:
 		s.handleUserDeleted(event)
+	case EventTypeUserReset:
+		s.handleUserReset(event)
 	default:
 		logger.Warn("Unknown event type received", zap.String("type", event.Type))
 		http.Error(w, "Unknown event type", http.StatusBadRequest)
@@ -92,6 +96,31 @@ func (s *Server) handleUserDeleted(event UserEvent) {
 	}
 
 	logger.Info("Mailbox added to purge queue", zap.String("email", email))
+}
+
+// handleUserReset processes user reset events by immediately purging the mailbox
+func (s *Server) handleUserReset(event UserEvent) {
+	email := event.Data.Email
+	logger.Info("User reset event received", zap.String("email", email))
+
+	// Validate email before purging (defense in depth)
+	if err := validateEmail(email); err != nil {
+		logger.Error("Invalid email address rejected",
+			zap.String("email", email),
+			zap.Error(err))
+		return
+	}
+
+	go func() {
+		logger.Info("Immediately purging mailbox", zap.String("email", email))
+		if err := s.purger.purgeMailbox(email); err != nil {
+			logger.Error("Failed to immediately purge mailbox",
+				zap.String("email", email),
+				zap.Error(err))
+			return
+		}
+		logger.Info("Mailbox immediately purged successfully", zap.String("email", email))
+	}()
 }
 
 // AuthMiddleware verifies webhook signatures using HMAC SHA256
