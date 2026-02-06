@@ -20,7 +20,6 @@ type ToucherTestSuite struct {
 }
 
 func (s *ToucherTestSuite) SetupTest() {
-	defer gock.Off()
 	logger = zap.NewNop()
 
 	// Create temporary directory for sieve files
