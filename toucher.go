@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -96,8 +97,7 @@ func (t *Toucher) processInactiveUser(email string) {
 		cmd := exec.Command("/usr/bin/sudo", "/usr/bin/cat", sieveFilePath)
 		sieveContents, err = cmd.Output()
 	} else {
-		cmd := exec.Command("/usr/bin/cat", sieveFilePath)
-		sieveContents, err = cmd.Output()
+		sieveContents, err = os.ReadFile(sieveFilePath)
 	}
 
 	if err != nil {

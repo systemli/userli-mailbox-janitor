@@ -175,3 +175,54 @@ func (s *ServerTestSuite) TestAuthMiddleware_MissingSignature() {
 func TestServerTestSuite(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
 }
+
+func (s *ServerTestSuite) TestHandleHealth() {
+	s.server.RegisterRoutes()
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+
+	s.server.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+	s.Equal("OK", w.Body.String())
+}
+
+func (s *ServerTestSuite) TestRegisterRoutes_WebhookWithAuth() {
+	s.server.RegisterRoutes()
+
+	// POST /userli without signature should be rejected
+	payload := []byte(`{"type":"user.deleted","data":{"email":"test@example.com"}}`)
+	req := httptest.NewRequest("POST", "/userli", bytes.NewBuffer(payload))
+	w := httptest.NewRecorder()
+
+	s.server.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusUnauthorized, w.Code)
+}
+
+func (s *ServerTestSuite) TestHandleUserDeleted_DuplicateEmail() {
+	// First event: should succeed
+	event := UserEvent{
+		Type: EventTypeUserDeleted,
+	}
+	event.Data.Email = "duplicate@example.com"
+	jsonData, err := json.Marshal(event)
+	s.NoError(err)
+
+	req := httptest.NewRequest("POST", "/userli", bytes.NewBuffer(jsonData))
+	w := httptest.NewRecorder()
+	s.server.handleUserliEvent(w, req)
+	s.Equal(http.StatusOK, w.Code)
+
+	// Second event with same email: should still return OK (error is logged, not returned to client)
+	req = httptest.NewRequest("POST", "/userli", bytes.NewBuffer(jsonData))
+	w = httptest.NewRecorder()
+	s.server.handleUserliEvent(w, req)
+	s.Equal(http.StatusOK, w.Code)
+
+	// Only one mailbox should be in the database
+	mailboxes, err := s.db.GetDueMailboxes(0)
+	s.NoError(err)
+	s.Len(mailboxes, 1)
+}
