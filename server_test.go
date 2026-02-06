@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -20,6 +21,7 @@ type ServerTestSuite struct {
 	suite.Suite
 	server   *Server
 	db       *Database
+	purger   *Purger
 	tempFile string
 }
 
@@ -36,8 +38,11 @@ func (s *ServerTestSuite) SetupTest() {
 	s.db, err = NewDatabase(s.tempFile)
 	s.Require().NoError(err)
 
+	// Create purger with a harmless command
+	s.purger = NewPurger(s.db, time.Hour, 24, "true")
+
 	// Create server
-	s.server = NewServer("test-secret", s.db)
+	s.server = NewServer("test-secret", s.db, s.purger)
 }
 
 func (s *ServerTestSuite) TearDownTest() {
@@ -118,6 +123,58 @@ func (s *ServerTestSuite) TestHandleUserliEvent_UserDeleted_InvalidEmail() {
 			mailboxes, err := s.db.GetDueMailboxes(0)
 			s.NoError(err)
 			s.Empty(mailboxes, "mailbox with invalid email should not be added")
+		})
+	}
+}
+
+func (s *ServerTestSuite) TestHandleUserliEvent_UserReset() {
+	event := UserEvent{
+		Type: EventTypeUserReset,
+	}
+	event.Data.Email = "test@example.com"
+	jsonData, err := json.Marshal(event)
+	s.NoError(err)
+
+	req := httptest.NewRequest("POST", "/userli", bytes.NewBuffer(jsonData))
+	w := httptest.NewRecorder()
+
+	s.server.handleUserliEvent(w, req)
+	s.Equal(http.StatusOK, w.Code)
+
+	// Verify mailbox was NOT added to the purge queue database
+	mailboxes, err := s.db.GetDueMailboxes(0)
+	s.NoError(err)
+	s.Empty(mailboxes, "user.reset should not add mailbox to the purge queue")
+
+	// Wait briefly for the goroutine to complete
+	time.Sleep(100 * time.Millisecond)
+}
+
+func (s *ServerTestSuite) TestHandleUserliEvent_UserReset_InvalidEmail() {
+	testCases := []struct {
+		name  string
+		email string
+	}{
+		{"wildcard star", "*@example.com"},
+		{"wildcard question", "user?@example.com"},
+		{"shell injection", "user@example.com;rm -rf /"},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			event := UserEvent{
+				Type: EventTypeUserReset,
+			}
+			event.Data.Email = tc.email
+			jsonData, err := json.Marshal(event)
+			s.NoError(err)
+
+			req := httptest.NewRequest("POST", "/userli", bytes.NewBuffer(jsonData))
+			w := httptest.NewRecorder()
+
+			s.server.handleUserliEvent(w, req)
+			// Request should still return OK (webhook received), but mailbox should not be purged
+			s.Equal(http.StatusOK, w.Code)
 		})
 	}
 }

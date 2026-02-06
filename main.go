@@ -70,7 +70,7 @@ func main() {
 	go toucher.Start(ctx)
 
 	// Start HTTP server
-	server := NewServer(config.WebhookSecret, db)
+	server := NewServer(config.WebhookSecret, db, purger)
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)

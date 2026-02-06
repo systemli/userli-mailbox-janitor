@@ -5,6 +5,8 @@ import "time"
 const (
 	// EventTypeUserDeleted is the event type for user deletion
 	EventTypeUserDeleted = "user.deleted"
+	// EventTypeUserReset is the event type for user reset (immediate mailbox purge)
+	EventTypeUserReset = "user.reset"
 )
 
 // UserEvent represents a user event from userli
