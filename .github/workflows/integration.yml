@@ -53,10 +53,6 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.actor == 'dependabot[bot]' }}
 
-    permissions:
-      pull-requests: write
-      contents: write
-
     steps:
       - name: Obtain Access Token
         id: acces_token
@@ -65,6 +61,6 @@ jobs:
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
       - name: Merge
-        uses: fastify/github-action-merge-dependabot@v3
+        uses: fastify/github-action-merge-dependabot@73ec4cbb5e56df5591eae286972d5b2201ffe90f # v3.15.0
         with:
           github-token: ${{ steps.acces_token.outputs.token }}
